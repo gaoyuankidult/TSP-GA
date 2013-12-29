@@ -1,0 +1,59 @@
+#ifndef ALGORITHM_H
+#define ALGOROTHM_H
+#include <stdio.h>
+#include <stdlib.h>
+ 
+/* define a shuffle function. e.g. decl_shuffle(double).
+ * advantage: compiler is free to optimize the swap operation without
+ *            indirection with pointers, which could be much faster.
+ * disadvantage: each datatype needs a separate instance of the function.
+ *            for a small funciton like this, it's not very big a deal.
+ */
+#define decl_shuffle(type)				\
+void shuffle_##type(type *list, size_t len) {		\
+	int j;						\
+	type tmp;					\
+	while(len) {					\
+		j = irand(len);				\
+		if (j != len - 1) {			\
+			tmp = list[j];			\
+			list[j] = list[len - 1];	\
+			list[len - 1] = tmp;		\
+		}					\
+		len--;					\
+	}						\
+}							\
+
+/* random integer from 0 to n-1 */
+int irand(int n)
+{
+	int r, rand_max = RAND_MAX - (RAND_MAX % n);
+	/* reroll until r falls in a range that can be evenly
+	 * distributed in n bins.  Unless n is comparable to
+	 * to RAND_MAX, it's not *that* important really. */
+	while ((r = rand()) >= rand_max);
+	return r / (rand_max / n);
+}
+ 
+/* declare and define int type shuffle function from macro */
+decl_shuffle(int);
+
+int Any(int k, int array[], int size)
+{
+    int i = 0;
+    for(i = 0; i < size ; i++ )
+    {
+        if(k == array[i])
+            return 1;
+    }
+    return 0;
+}
+
+#define swap(x,y) do \
+   { unsigned char swap_temp[sizeof(x) == sizeof(y) ? (signed)sizeof(x) : -1]; \
+     memcpy(swap_temp,&y,sizeof(x)); \
+     memcpy(&y,&x,       sizeof(x)); \
+     memcpy(&x,swap_temp,sizeof(x)); \
+    } while(0)
+
+#endif

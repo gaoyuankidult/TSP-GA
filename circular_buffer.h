@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "city.h"
+
 
 typedef struct circular_buffer
 {
@@ -14,32 +16,46 @@ typedef struct circular_buffer
     size_t sz;        // size of each item in the buffer
     void *head;       // pointer to head
     void *tail;       // pointer to tail
+    int *ranks;
 } circular_buffer;
 
 void cb_init(circular_buffer *cb, size_t capacity, size_t sz)
 {
     cb->buffer = malloc(capacity * sz);
     if(cb->buffer == NULL)
-        // handle error
         cb->buffer_end = (char *)cb->buffer + capacity * sz;
     cb->capacity = capacity;
-    cb->count = 0;
     cb->sz = sz;
+    cb_clear(cb);
+}
+
+void cb_clear(circular_buffer *cb)
+{
+    cb->count = 0;
     cb->head = cb->buffer;
     cb->tail = cb->buffer;
+    cb->ranks = NULL;
+    return;
 }
 
 void cb_free(circular_buffer *cb)
 {
-    free(cb->buffer);
+
+    if(NULL != cb->ranks)
+        free(cb->ranks);
+    cb->count = 0;
+    if(NULL !=cb->buffer)
+        free(cb->buffer);
     // clear out other fields too, just to be safe
 }
 
 void cb_push_back(circular_buffer *cb, const void *item)
 {
-    if(cb->count == cb->capacity)
+    if(cb->count <= cb->capacity)
+    {
         // handle error
         memcpy(cb->head, item, cb->sz);
+    }
     cb->head = (char*)cb->head + cb->sz;
     if(cb->head == cb->buffer_end)
         cb->head = cb->buffer;
@@ -48,7 +64,7 @@ void cb_push_back(circular_buffer *cb, const void *item)
 
 void cb_pop_front(circular_buffer *cb, void *item)
 {
-    if(cb->count == 0)
+    if(cb->count >= 0)
         // handle error
         memcpy(item, cb->tail, cb->sz);
     cb->tail = (char*)cb->tail + cb->sz;
@@ -56,5 +72,7 @@ void cb_pop_front(circular_buffer *cb, void *item)
         cb->tail = cb->buffer;
     cb->count--;
 }
+
+#include "cb_extension.h"
 
 #endif

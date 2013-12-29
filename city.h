@@ -1,3 +1,7 @@
+#ifndef CITY_H
+#define CITY_H
+
+
 
 typedef struct city_struct{
     double x;
@@ -32,7 +36,10 @@ double gety(City* self)
 
 void CityInfo(City* self)
 {
-    printf("The city's location is (%lf,%lf)",self->x,self->y);
+    printf("%lf\t%lf\n",self->x,self->y);
 }
 
+
 const City CITY_DEFAULT = {0.0,0.0,getx,gety,setx,sety,CityInfo};
+
+#endif
