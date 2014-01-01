@@ -1,8 +1,11 @@
 #ifndef CB_EXTENSION
 #define CB_EXTENSION
+
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <stdio.h>
 #include "city.h"
-
 
 void cb_print_cities(circular_buffer *cb)
 {
@@ -29,14 +32,13 @@ void cb_store_cities(circular_buffer *cb, const char* filename)
     }
     FILE *ofp;
     char *mode = "w";
-    char outputFilename[] = "out.list";
 
 
     ofp = fopen(filename, mode);
 
     if (ofp == NULL) {
       fprintf(stderr, "Can't open output file %s!\n",
-              outputFilename);
+              filename);
       exit(1);
     }
     fprintf(ofp,"X\tY\t\n");
@@ -59,4 +61,6 @@ void cb_store_ranks(circular_buffer *cb,int *ranks)
     }
     return;
 }
+
+
 #endif

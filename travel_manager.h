@@ -13,7 +13,7 @@ typedef struct travel_manager{
     void (* SetCities)(double[], double[], City[], int);
     double (* GetDistance)(City*, City*);
 
-    void (* RandomInitPath)(struct travel_manager*, circular_buffer*,City[]);
+    void (* RandomInitPath)(struct travel_manager*, circular_buffer*);
     void (* SetPath)(struct travel_manager*, circular_buffer* ,int[] );
 } TravelManager;
 
@@ -45,7 +45,7 @@ double GetDistance(City* city1, City* city2)
 }
 
 
-void RandomInitPath(struct travel_manager* tm, circular_buffer* buffer,City cities[])
+void RandomInitPath(struct travel_manager* tm, circular_buffer* buffer)
 {
     int i = 0;
     int ranking[tm->city_number];

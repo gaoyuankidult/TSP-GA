@@ -4,7 +4,7 @@
 #include <stdlib.h>
  
 /* define a shuffle function. e.g. decl_shuffle(double).
- * advantage: compiler is free to optimize the swap operation without
+ * advantage: compiler is free to optimize the SWAP operation without
  *            indirection with pointers, which could be much faster.
  * disadvantage: each datatype needs a separate instance of the function.
  *            for a small funciton like this, it's not very big a deal.
@@ -38,22 +38,25 @@ int irand(int n)
 /* declare and define int type shuffle function from macro */
 decl_shuffle(int);
 
-int Any(int k, int array[], int size)
+int Any(const int k, const int array [] , const int size)
 {
     int i = 0;
+    int input = k;
     for(i = 0; i < size ; i++ )
     {
-        if(k == array[i])
+        if(input == array[i])
             return 1;
     }
     return 0;
 }
 
-#define swap(x,y) do \
-   { unsigned char swap_temp[sizeof(x) == sizeof(y) ? (signed)sizeof(x) : -1]; \
-     memcpy(swap_temp,&y,sizeof(x)); \
+#define SWAP(x,y) do \
+   { unsigned char SWAP_temp[sizeof(x) == sizeof(y) ? (signed)sizeof(x) : -1]; \
+     memcpy(SWAP_temp,&y,sizeof(x)); \
      memcpy(&y,&x,       sizeof(x)); \
-     memcpy(&x,swap_temp,sizeof(x)); \
+     memcpy(&x,SWAP_temp,sizeof(x)); \
     } while(0)
 
 #endif
+
+#define IGNORE(x) {x=x;}

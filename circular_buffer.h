@@ -19,6 +19,15 @@ typedef struct circular_buffer
     int *ranks;
 } circular_buffer;
 
+void cb_clear(circular_buffer *cb)
+{
+    cb->count = 0;
+    cb->head = cb->buffer;
+    cb->tail = cb->buffer;
+    cb->ranks = NULL;
+    return;
+}
+
 void cb_init(circular_buffer *cb, size_t capacity, size_t sz)
 {
     cb->buffer = malloc(capacity * sz);
@@ -29,14 +38,6 @@ void cb_init(circular_buffer *cb, size_t capacity, size_t sz)
     cb_clear(cb);
 }
 
-void cb_clear(circular_buffer *cb)
-{
-    cb->count = 0;
-    cb->head = cb->buffer;
-    cb->tail = cb->buffer;
-    cb->ranks = NULL;
-    return;
-}
 
 void cb_free(circular_buffer *cb)
 {

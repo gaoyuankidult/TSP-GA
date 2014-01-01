@@ -4,10 +4,15 @@ CONFIG -= app_bundle
 CONFIG -= qt
 
 #MPI settings
-QMAKE_CC = mpicc
-QMAKE_LINK = $$QMAKE_CC
+#QMAKE_CC = mpicc
+#QMAKE_LINK = $$QMAKE_CC
+
+QMAKE_CC = gcc
+QMAKE_CFLAGS *= -O1
+QMAKE_CFLAGS *= -fopenmp
 
 LIBS += -lm
+LIBS += -fopenmp
 
 
 SOURCES += \
