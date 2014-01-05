@@ -2,17 +2,18 @@ TEMPLATE = app
 CONFIG += console
 CONFIG -= app_bundle
 CONFIG -= qt
+QMAKE_CFLAGS *= -O3
 
 #MPI settings
-#QMAKE_CC = mpicc
-#QMAKE_LINK = $$QMAKE_CC
+QMAKE_CC = mpicc
+QMAKE_LINK = $$QMAKE_CC
 
-QMAKE_CC = gcc
-QMAKE_CFLAGS *= -O1
-QMAKE_CFLAGS *= -fopenmp
+#QMAKE_CC = gcc
+#QMAKE_CFLAGS *= -fopenmp
 
 LIBS += -lm
-LIBS += -fopenmp
+#LIBS += -fopenmp
+#LIBS += -pthread
 
 
 SOURCES += \

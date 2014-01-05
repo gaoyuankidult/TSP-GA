@@ -5,9 +5,22 @@
 
 void InitializeMPI(int argc, char** argv, int* rank, int* size)
 {
-    MPI_Init (&argc, &argv);
-    MPI_Comm_rank (MPI_COMM_WORLD, rank);
-    MPI_Comm_size (MPI_COMM_WORLD, size);
+    int rc = 0;
+    rc = MPI_Init (&argc, &argv);
+    if (rc != MPI_SUCCESS) {
+      printf("MPI initialization failed\n");
+      exit(1);
+    }
+    rc = MPI_Comm_rank (MPI_COMM_WORLD, rank);
+    if (rc != MPI_SUCCESS) {
+      printf("MPI get rank failed\n");
+      exit(1);
+    }
+    rc = MPI_Comm_size (MPI_COMM_WORLD, size);
+    if (rc != MPI_SUCCESS) {
+      printf("MPI get size failed\n");
+      exit(1);
+    }
     return ;
 }
 void FinalizeMPI()
@@ -21,9 +34,6 @@ void FinalizeMPI()
 typedef struct MPIManager{
     void (*InitializeMPI)(int, char**, int*, int*);
     void (*FinalizeMPI)();
-    void (*MPI_Scatter)(void* send_data, int send_count, MPI_Datatype send_datatype,
-                                   void* recv_data, int recv_count, MPI_Datatype recv_datatype,
-                                   int root, MPI_Comm communicator);
 }MPIManager;
 
 #endif

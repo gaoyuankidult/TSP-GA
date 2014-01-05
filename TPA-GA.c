@@ -35,23 +35,20 @@ int p_r_i = 0;
 
 #endif
 
-#define CITY_NUMBER 70
-#define RADIUS 100
-#define POPULATION 50000
-#define GENERATIONS 4
+#define CITY_NUMBER 60
+#define RADIUS 50
+#define POPULATION 3000
+#define GENERATIONS 1000
 #define PARENTS_NUMBER 2
 #define BEST_NUMBER 1
-#define MUTATE_PERCENT 85
-
 #define EXCHANGE_INTERVAL GENERATIONS/2
 
+#define MUTATE_PERCENT 85
 #define MUTATE_NORMAL_GENE_NUM 1
-
 #define MUTATE_MOTHER_GENE_NUM 4
-
 #define MUTATE_FATHER_GENE_NUM 0
 
-#define THREAD_NUMBER 2
+#define THREAD_NUMBER 1
 
 #define UNIFIED_MUTATION_RATE
 #define HIGH_MUTATION_RATE_IN_SECOND_POPULATION
@@ -74,9 +71,9 @@ int p_r_i = 0;
 //#define HUMAN_SELECT
 
 
-//#define USE_MPI
-#define USE_OPENMP
-
+#define USE_MPI
+//#define USE_OPENMP
+//#define USE_PTHREAD
 
 
 
@@ -89,11 +86,34 @@ int p_r_i = 0;
 #ifdef USE_MPI
 #include "mpi_manager.h"
 #endif
-
+#ifdef USE_PTHREAD
+#include <pthread.h>
+#endif
 #include "genetic_algorithm.h"
 #include "math.h"
 #include "time.h"
 
+
+void SinGenerator(double x[],double y[])
+{
+    int i = 0;
+    for (i = 0; i< CITY_NUMBER;i++)
+    {
+        x[i]=i;
+        y[i]=sin(i);
+    }
+    return;
+}
+void ParabolaGenerator(double x[],double y[])
+{
+    int i = 0;
+    for (i = 0; i< CITY_NUMBER;i++)
+    {
+        x[i]=i;
+        y[i]=2*M_PI*i*i;
+    }
+    return;
+}
 void LinearGenerator(double x[],double y[])
 {
     int i = 0;
@@ -119,9 +139,7 @@ int main (int argc, char* argv[])
 {
     IGNORE(argc);
     IGNORE(argv);
-    int rank = 0;
     int i = 0;
-    srand(time(NULL));
     double x[CITY_NUMBER];
     double y[CITY_NUMBER];
 
@@ -131,90 +149,139 @@ int main (int argc, char* argv[])
 #pragma omp parallel
     {
 #pragma omp master
-            printf("The thread number is: %d\n",omp_get_num_threads());
+        printf("The thread number is: %d\n",omp_get_num_threads());
     }
+#endif
+
+#ifdef USE_PTHREAD
+    pthread_t threads[THREAD_NUMBER];
+    int rc = 0;
 #endif
 
 
     //LinearGenerator(x,y);
     CircleGenerator(x,y);
+    //SinGenerator(x,y);
 #ifdef USE_MPI
     int size = 0;
+    int rank = 0;
     MPIManager mpi_manager;
-    mpi_manager = (MPIManager){InitializeMPI,FinalizeMPI,MPI_Scatter};
+    mpi_manager = (MPIManager){InitializeMPI,FinalizeMPI};
+    mpi_manager.InitializeMPI(argc,argv,&rank,&size);
 #endif
 
 #ifdef PROCESS_CHECK
-    printf("(%d)Initialize Travel Manager \n",p_r_i++);
+    if(0 == rank)
+    {
+        printf("(%d)Initialize Travel Manager \n",p_r_i++);
+    }
 #endif
 
-    TravelManager travel_controller1;
-    travel_controller1 = (TravelManager){0,NULL,InitCities,SetCities,GetDistance,RandomInitPath,SetPath};
+    TravelManager travel_controller;
+    travel_controller = (TravelManager){0,NULL,InitCities,SetCities,GetDistance,RandomInitPath,SetPath};
 
 
 #ifdef PROCESS_CHECK
-    printf("(%d)Initialize Cities \n",p_r_i++);
+    if(0 == rank)
+    {
+        printf("(%d)Initialize Cities \n",p_r_i++);
+    }
 #endif
 
     City cities[CITY_NUMBER];
-    travel_controller1.InitCities(&travel_controller1,CITY_NUMBER,cities);
-    travel_controller1.SetCities(x,y,cities,CITY_NUMBER);
-
-    GeneticAlgorithm ga1;
-    ga1 = GA_DEFAULT;
-    ga1.InitPopulation(&ga1,POPULATION,PARENTS_NUMBER,&travel_controller1);
-#ifdef PROCESS_CHECK
-    printf("(%d)Initialize Genetic Algorithm Population \n",p_r_i++);
-#endif
-
-
-    TravelManager travel_controller2;
-    travel_controller2 = (TravelManager){0,NULL,InitCities,SetCities,GetDistance,RandomInitPath,SetPath};
-    travel_controller2.InitCities(&travel_controller2,CITY_NUMBER,cities);
-    travel_controller2.SetCities(x,y,cities,CITY_NUMBER);
-    GeneticAlgorithm ga2;
-    ga2 = GA_DEFAULT;
-    ga2.InitPopulation(&ga2,POPULATION,PARENTS_NUMBER,&travel_controller2);
-
-    circular_buffer* best1;
-    circular_buffer* best2;
-
-    GeneticAlgorithm **g;
-    g = malloc(sizeof(GeneticAlgorithm*)*2);
-    g[0] = &ga1;
-    g[1] = &ga2;
-
-#pragma omp parallel for
-for(i = 0;i<2;i++)
-{
-        g[i]->Evolve(g[i]);
-        //ga1.Evolve(&ga1);
-//        best1 = ga1.FindRelativeBest(&ga1,0);
-//        printf("The fitness of gene algo 1 is : %lf\n",ga1.CalcFitness(&ga1,best1));
-
-
-        //ga2.Evolve(&ga2);
-//        best2 = ga2.FindRelativeBest(&ga2,0);
-//        printf("The fitness of gene algo 2 is : %lf\n",ga2.CalcFitness(&ga2,best2));
-}
+    travel_controller.InitCities(&travel_controller,CITY_NUMBER,cities);
+    travel_controller.SetCities(x,y,cities,CITY_NUMBER);
+    GeneticAlgorithm ga;
+    ga = (GeneticAlgorithm){0,0,NULL,NULL,NULL,InitPopulation,CalcFitness,FindRelativeBest,PrintGene,Evolve,Distribute,Mutate,Breed,Collapse,ExchangeWith};
+    ga.InitPopulation(&ga,POPULATION,PARENTS_NUMBER,&travel_controller);
 
 #ifdef PROCESS_CHECK
-    printf("(%d)Evolving \n",p_r_i++);
-#endif
-
-    //cb_print_cities(best1);
-//    cb_store_cities(best1,"/home/gao/Desktop/temp.txt");
-
-    ga1.Collapse(&ga1);
-    ga2.Collapse(&ga2);
-
-    if( 0 == rank)
+    if(0 == rank)
     {
-        //printf( "Total process number is %d\n",size);
+        printf("(%d)Initialize Genetic Algorithm Population \n",p_r_i++);
     }
+#endif
 
+#ifdef USE_OPENMP
+#pragma omp parallel for
+    for(i = 0;i<2;i++)
+    {
+        g[i]->Evolve(g[i]);
+    }
+#endif
+
+#ifdef USE_PTHREAD
+    for(i = 0;i<THREAD_NUMBER;i++)
+    {
+        printf("In main: creating thread %ld\n", i);
+        rc = pthread_create(&threads[i], NULL, g[i]->Evolve, (void *)g[i]);
+        if (rc){
+            printf("ERROR; return code from pthread_create() is %d\n", rc);
+            exit(-1);
+        }
+    }
+#endif
+
+#ifdef USE_MPI
+    srand(time(NULL)^rank);
+    circular_buffer* temp_city;
+    char* temp_buffer = NULL;
+    int city_ranks[CITY_NUMBER];
+    double fitness = 0.0;
+    for(i = 0;i < GENERATIONS;i++)
+    {
+        ga.Evolve(&ga);
+        MPI_Status stat;
+        temp_city = (ga.FindRelativeBest(&ga,0));
+        cb_output_ranks(temp_city,city_ranks);
+
+        if(size > 1)
+        {
+            MPI_Send(city_ranks, CITY_NUMBER, MPI_INT, (rank+1)%size, 0, MPI_COMM_WORLD);
+            MPI_Recv(city_ranks, CITY_NUMBER, MPI_INT, rank==0?size-1:rank-1, 0, MPI_COMM_WORLD, &stat);
+        }
+        fitness = ga.CalcFitness(&ga,ga.FindRelativeBest(&ga,0));
+        if(0 == rank)
+        {
+            printf("The fitness of gene algo is : %lf\n",fitness);
+        }
+
+        ga.ExchangeWith(&ga,city_ranks);
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        if(fitness < 315)
+        {
+            printf("The current iteration is %d\n  ",i);
+            if(size > 1)
+            {
+                MPI_Abort(MPI_COMM_WORLD,911);
+            }
+            break;
+        }
+    }
+    free(temp_buffer);
+
+#endif
 #ifdef PROCESS_CHECK
-    printf("(%d)Finalize MPI \n",p_r_i++);
+    if(0 == rank)
+    {
+        printf("(%d)Evolving \n",p_r_i++);
+    }
+#endif
+    //    cb_store_cities(best1,"/home/gao/Desktop/temp.txt");
+    ga.Collapse(&ga);
+#ifdef USE_MPI
+#ifdef PROCESS_CHECK
+    if(0 == rank)
+    {
+        printf("(%d)Finalize MPI \n",p_r_i++);
+    }
+    mpi_manager.FinalizeMPI();
+#endif
+#endif
+#ifdef USE_PTHREAD
+    (void) pthread_join(&threads[0], NULL);
+    (void) pthread_join(&threads[1], NULL);
 #endif
     clock_t end = clock();
     float seconds = (float)(end - start) / CLOCKS_PER_SEC;

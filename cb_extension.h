@@ -62,5 +62,14 @@ void cb_store_ranks(circular_buffer *cb,int *ranks)
     return;
 }
 
+void cb_output_ranks(circular_buffer *cb,int ranks[])
+{
+    int unsigned i = 0;
+    for(i = 0; i < cb-> count ; i++)
+    {
+        ranks[i] = (cb->ranks)[i];
+    }
+    return;
+}
 
 #endif

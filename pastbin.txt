@@ -22,12 +22,11 @@ typedef struct genetic_struct{
     double (*CalcFitness)(struct genetic_struct*,circular_buffer*);
     circular_buffer* (*FindRelativeBest)(struct genetic_struct*,int);
     void (*PrintGene)(circular_buffer* cb);
-    void (*Evolve)(void*);
+    void (*Evolve)(struct genetic_struct*);
     void (*Distribute)();
     void (*Mutate)(circular_buffer* gene,int);
     circular_buffer** (*Breed)(struct genetic_struct*,circular_buffer* father, circular_buffer* mother);
     void (*Collapse)(struct genetic_struct*);
-    void (*ExchangeWith)(struct genetic_struct* , int[]);
 } GeneticAlgorithm;
 
 void InitPopulation(GeneticAlgorithm* ga,const unsigned int population_size_,const unsigned int population_number_,TravelManager* travel_manager_)
@@ -64,28 +63,24 @@ double CalcFitness(GeneticAlgorithm* ga,circular_buffer* cb)
     unsigned int i = 0;
     double fitness = 0.0;
     //cb->count
-    if(NULL == cb)
-    {
-        exit(0);
-    }
     for(i = 0;i < cb->count;i++)
     {
         fitness += ga->travel_manager->GetDistance((*((City**)(cb->buffer)+i)),(*((City**)(cb->buffer)+(i+1)%cb->count)));
     }
     return fitness;
 }
-circular_buffer* FindRelativeBest(struct genetic_struct* ga,int population_rank_)
+circular_buffer* FindRelativeBest(GeneticAlgorithm* ga,int population_rank_)
 {
     unsigned int i = 0;
     unsigned int j = 0;
-    double best1[BEST_NUMBER];
+    double best[BEST_NUMBER];
 
     for(i = 0;i < BEST_NUMBER; i++)
     {
 #ifdef INFINITY
-        best1[i] = INFINITY;
+        best[i] = INFINITY;
 #else
-        best1[i] = 0x7FFFFFFFFFFFFFFF;
+        best[i] = 0x7FFFFFFFFFFFFFFF;
 #endif
     }
     circular_buffer** elite_individual = NULL;
@@ -95,19 +90,19 @@ circular_buffer* FindRelativeBest(struct genetic_struct* ga,int population_rank_
     for(i = 0;i < ga->population_size;i++)
     {
         *((ga->fitness)[population_rank_]+i) = ga->CalcFitness(ga,(ga->population)[population_rank_]+i);
-        //                printf("%d",best1[BEST_NUMBER-1]);
-        if(best1[BEST_NUMBER-1] >= (ga->fitness)[population_rank_][i])
+        //                printf("%d",best[BEST_NUMBER-1]);
+        if(best[BEST_NUMBER-1] >= (ga->fitness)[population_rank_][i])
         {
 
-            best1[BEST_NUMBER-1] = *((ga->fitness)[population_rank_]+i);
+            best[BEST_NUMBER-1] = *((ga->fitness)[population_rank_]+i);
             elite_individual[BEST_NUMBER-1]  = (ga->population)[population_rank_]+i;
 
 
             for(j= 1;j < BEST_NUMBER ;j++)
             {
-                if(best1[BEST_NUMBER-j] < best1[BEST_NUMBER-j-1])
+                if(best[BEST_NUMBER-j] < best[BEST_NUMBER-j-1])
                 {
-                    SWAP(best1[BEST_NUMBER-j],best1[BEST_NUMBER-j-1]);
+                    SWAP(best[BEST_NUMBER-j],best[BEST_NUMBER-j-1]);
                     SWAP(elite_individual[BEST_NUMBER-j],elite_individual[BEST_NUMBER-j-1]);
                 }
             }
@@ -120,10 +115,10 @@ circular_buffer* FindRelativeBest(struct genetic_struct* ga,int population_rank_
     {
         printf("fitness:%lf\n",*((ga->fitness)[population_rank_]+i));
     }
-    printf("best1 fitness are :");
+    printf("best fitness are :");
     for(i = 0;i < BEST_NUMBER;i++)
     {
-        printf("%lf,",best1[i]);
+        printf("%lf,",best[i]);
     }
     printf("\n");
 #endif
@@ -156,24 +151,20 @@ void Distribute()
 
     return;
 }
-void Evolve(void*  ga_)
+void Evolve(struct genetic_struct* ga)
 {
-    struct genetic_struct* ga = (struct genetic_struct*)ga_;
     unsigned int i = 0;
     circular_buffer** elite_individual  = NULL;
     elite_individual = malloc(sizeof(circular_buffer*) * ga->population_number);
     for(i = 0; i < ga->population_number;i++)
     {
-        elite_individual[i] = ga->FindRelativeBest(ga,i);
-//        //ga->PrintGene(elite_individual[i]);
+        elite_individual[i] = FindRelativeBest(ga,i);
+
+        //ga->PrintGene(elite_individual[i]);
     }
 
     ga->Breed(ga,elite_individual[0],elite_individual[1]);
     free(elite_individual);
-    //printf("The fitness of gene algo is : %lf\n",ga->CalcFitness(ga,ga->FindRelativeBest(ga,0)));
-#ifdef USE_PTHREAD
-//    pthread_exit(NULL);
-#endif
     return;
 }
 circular_buffer** Breed(struct genetic_struct* ga,circular_buffer* father, circular_buffer* mother)
@@ -247,6 +238,7 @@ circular_buffer** Breed(struct genetic_struct* ga,circular_buffer* father, circu
 
     if(father->count == all_rank_same )
     {
+        //printf("gene count:%d,same locus: %d\n",father->count,all_rank_same);
 #ifdef RANDOM_MOTHER
         RandomInitPath(ga->travel_manager,mother,ga->travel_manager->cities);
         for(i = 0;i < father->count;i++)
@@ -321,49 +313,72 @@ circular_buffer** Breed(struct genetic_struct* ga,circular_buffer* father, circu
     unsigned int j = 0;
     unsigned int k = 0;
     int child_rank[father->count];
-    unsigned int gene_count = father->count;
-    unsigned int population_size = ga->population_size;
+
 
 
     child = ga->population;
 #ifdef USE_OPENMP
-#pragma omp parallel for firstprivate(child_rank,current_loci) private(selection,i,j)
-    for(k = 0; k < ga->population_number ; k++)
 #endif
+
+#pragma omp for //private(child_rank),private(current_loci),private(locus)
     for(k = 0; k < ga->population_number ; k++)
     {
-#ifdef USE_OPENMP
-        srand((time(NULL)) ^ omp_get_thread_num());
-#endif
-//#pragma omp master
-//            printf("The thread number is: %d\n",omp_get_num_threads());
 #ifdef FIRST_AS_PARENTS
         child_rank[0] = parents_ranks[rand()%2][0];
 #endif
 #ifdef FIRST_AS_RANDOM
         child_rank[0] = rand()%CITY_NUMBER;
 #endif
-        for(j = 0; j < population_size ; j++)
+        for(j = 0; j < ga->population_size ; j++)
         {
-            for(i = 0; i < gene_count-1; i++)
+
+
+            for(i = 0; i < father->count-1; i++)
             {
 #ifdef NATURE_SELECT
                 selection = rand()%2;
 #endif
+
+#ifdef HUMAN_SELECT
+                if(ga->travel_manager->GetDistance((*((City**)(child[k][j].buffer)+locus[child_rank[i]][1])),(*((City**)(child[k][j].buffer)+child_rank[i]))) < \
+                        ga->travel_manager->GetDistance((*((City**)(child[k][j].buffer)+locus[child_rank[i]][0])),(*((City**)(child[k][j].buffer)+child_rank[i]))))
+                {
+                    selection = 1;
+                }
+                else
+                {
+                    selection = 0;
+                }
+#endif
+
                 current_loci = locus[child_rank[i]][selection];
+                //    printf("child loci is 2\n");
 
                 if(Any(current_loci,child_rank,i+1))
                 {
+#ifdef HUMAN_SELECT
+                    if(ga->travel_manager->GetDistance((*((City**)(child[k][j].buffer)+locus[child_rank[i]][1])),(*((City**)(child[k][j].buffer)+child_rank[i]))) < \
+                            ga->travel_manager->GetDistance((*((City**)(child[k][j].buffer)+locus[child_rank[i]][0])),(*((City**)(child[k][j].buffer)+child_rank[i]))))
+                    {
+                        selection = 1;
+                    }
+                    else
+                    {
+                        selection = 0;
+                    }
+#endif
                     current_loci = locus[child_rank[i]][1-selection];
                 }
                 // if that also exist, randomly choose one
                 // Here is i+1 as it needs to go through from 0 to i
 
-                    while(Any(current_loci,child_rank,i+1))
-                    {
-                        current_loci = rand()%gene_count;
-                    }
-              child_rank[(i+1)%gene_count] =  current_loci;
+                while(Any(current_loci,child_rank,i+1))
+                {
+                    current_loci = rand()%father->count;
+                }
+                // printf("child loci is \n");
+
+                child_rank[(i+1)%father->count] =  current_loci;
             }
 
 #ifdef CROSS_BIRTH
@@ -388,6 +403,10 @@ circular_buffer** Breed(struct genetic_struct* ga,circular_buffer* father, circu
 
         }
     }
+
+    //#ifdef PROCESS_CHECK
+    //    printf("(%d)Breed Children \n",p_r_i++);
+    //#endif
 
     for(i = 0; i< parents_number;i++)
     {
@@ -430,7 +449,12 @@ void Mutate(circular_buffer* gene,int mu_num)
         ranks[0]=rand()%CITY_NUMBER;
         ranks[1]=rand()%CITY_NUMBER;
 #endif
+        //        printf("before1 !%lf\n",(*(((City**)gene->buffer)+ranks[0]))->x);
+        //        printf("before1 !%lf\n",(*(((City**)gene->buffer)+ranks[1]))->x);
+
         SWAP(*(((City**)gene->buffer)+ranks[0]),*(((City**)gene->buffer)+ranks[1]));
+        //        printf("after1 !%lf\n",(*(((City**)gene->buffer)+ranks[0]))->x);
+        //        printf("after1 !%lf\n",(*(((City**)gene->buffer)+ranks[1]))->x);
         SWAP(gene->ranks[ranks[0]],gene->ranks[ranks[1]]);
     }
 
@@ -451,12 +475,4 @@ void Collapse(struct genetic_struct* ga)
     return;
 }
 
-void ExchangeWith(GeneticAlgorithm* ga, int rank[])
-{
-    circular_buffer ** slice_pointer = NULL;
-    slice_pointer = ga->population;
-    ga->travel_manager->SetPath(ga->travel_manager,*slice_pointer,rank);
-    cb_store_ranks(*slice_pointer,rank);
-    return;
-}
-const GeneticAlgorithm GA_DEFAULT={0,0,NULL,NULL,NULL,InitPopulation,CalcFitness,FindRelativeBest,PrintGene,Evolve,Distribute,Mutate,Breed,Collapse,ExchangeWith};
+const GeneticAlgorithm GA_DEFAULT={0,0,NULL,NULL,NULL,InitPopulation,CalcFitness,FindRelativeBest,PrintGene,Evolve,Distribute,Mutate,Breed,Collapse};
